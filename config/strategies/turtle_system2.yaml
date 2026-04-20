@@ -1,0 +1,12 @@
+name: turtle_system2
+params:
+  entry_period: 55
+  exit_period: 20
+  atr_period: 20
+  atr_stop_mult: 2.0
+  long_only: true
+universe:
+  - SPY
+data_period: "max"
+cost_bps: 15
+risk_per_trade: 0.01
