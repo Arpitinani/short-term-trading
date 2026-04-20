@@ -1,0 +1,11 @@
+name: connors_rsi2
+params:
+  rsi_period: 2
+  sma_period: 200
+  entry_threshold: 5
+  exit_threshold: 65
+universe:
+  - SPY
+data_period: "max"
+cost_bps: 15
+risk_per_trade: 0.01
