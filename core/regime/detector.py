@@ -126,6 +126,43 @@ def _signal_momentum_20d(close: pd.Series) -> float:
     return float(np.clip(roc * 20, -1, 1))
 
 
+def _signal_fear_greed(score: float | None) -> float:
+    """CNN Fear & Greed Index (0-100). Contrarian signal at extremes.
+
+    Extreme fear (<25) = bullish (contrarian buy), extreme greed (>75) = bearish.
+    This is a sentiment indicator — when everyone is fearful, it's often a good
+    time to buy, and when everyone is greedy, risk is elevated.
+    """
+    if score is None:
+        return 0.0
+    # 50 = neutral, 75 = -1 (extreme greed = bearish), 25 = +1 (extreme fear = bullish)
+    return float(np.clip((50 - score) / 25, -1, 1))
+
+
+def _signal_rate_expectations(tnx_series: pd.Series) -> float:
+    """2-Year Treasury yield 30-day change as proxy for Fed rate expectations.
+
+    Falling 2Y yield = market pricing in more cuts = easier policy = bullish.
+    Rising 2Y yield = market pricing in fewer cuts / hikes = tighter policy = bearish.
+
+    We use 2Y Treasury because:
+    - Available from FRED (reliable), unlike CME futures which are spotty via yfinance
+    - Highly correlated with Fed Funds futures expectations
+    - Captures the same information: the market's bet on where rates are going
+    """
+    if len(tnx_series) < 30:
+        return 0.0
+    # Use 10Y as a proxy when 2Y isn't available separately
+    # 30-day change in yield: falling = bullish, rising = bearish
+    current = float(tnx_series.iloc[-1])
+    month_ago = float(tnx_series.iloc[-22]) if len(tnx_series) >= 22 else float(tnx_series.iloc[0])
+    change = current - month_ago  # in percentage points
+
+    # ±0.5% change in 30 days = max signal
+    # Negative change (yields falling) = bullish (+1)
+    return float(np.clip(-change * 2, -1, 1))
+
+
 # ---------------------------------------------------------------------------
 # Weights — based on empirical signal effectiveness
 # These represent how strongly each signal predicts forward returns.
@@ -140,16 +177,20 @@ def _signal_momentum_20d(close: pd.Series) -> float:
 # - Momentum: fast-moving, catches regime shifts early
 # - Yield curve: slow-moving, structural macro signal
 # - VIX term: acute stress detection (backwardation = imminent danger)
+# - Fear & Greed: composite sentiment, contrarian at extremes
+# - Rate expectations: liquidity signal (falling yields = easier policy = bullish)
 
 DEFAULT_WEIGHTS = {
-    "spx_vs_200sma": 0.25,    # most reliable trend signal
-    "spx_vs_50sma": 0.10,     # shorter-term confirmation
-    "sma_cross": 0.10,        # golden/death cross
-    "vix": 0.15,              # fear/complacency gauge
-    "vix_term": 0.10,         # acute stress detection
-    "breadth": 0.15,          # market participation
+    "spx_vs_200sma": 0.20,    # most reliable trend signal
+    "spx_vs_50sma": 0.08,     # shorter-term confirmation
+    "sma_cross": 0.08,        # golden/death cross
+    "vix": 0.12,              # fear/complacency gauge
+    "vix_term": 0.08,         # acute stress detection
+    "breadth": 0.12,          # market participation
     "yield_curve": 0.05,      # macro structural signal (slow)
-    "momentum_20d": 0.10,     # catches regime shifts fast
+    "momentum_20d": 0.09,     # catches regime shifts fast
+    "fear_greed": 0.10,       # composite sentiment, contrarian at extremes
+    "rate_expectations": 0.08, # liquidity — falling rates = bullish
 }
 
 
@@ -235,6 +276,16 @@ class RegimeDetector:
 
         if "tnx" in data and "irx" in data:
             signals["yield_curve"] = _signal_yield_curve(data["tnx"], data["irx"])
+
+        # Fear & Greed (passed as a scalar in data dict, not a Series)
+        if "fear_greed_score" in data:
+            fg = data["fear_greed_score"]
+            score = float(fg) if not isinstance(fg, pd.Series) else float(fg.iloc[-1])
+            signals["fear_greed"] = _signal_fear_greed(score)
+
+        # Rate expectations — use 10Y yield 30-day change as proxy
+        if "tnx" in data:
+            signals["rate_expectations"] = _signal_rate_expectations(data["tnx"])
 
         # Fill missing signals with 0
         for key in self.weights:
