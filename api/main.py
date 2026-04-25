@@ -14,9 +14,14 @@ Run: uvicorn api.main:app --reload --port 8000
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
+
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -51,7 +56,9 @@ def _get_orchestrator():
     global _orchestrator
     if _orchestrator is None:
         from execution.orchestrator import Orchestrator
-        _orchestrator = Orchestrator(broker_mode="dry_run")
+        # Use paper mode if Alpaca keys are configured, otherwise dry_run
+        broker_mode = "paper" if os.environ.get("ALPACA_API_KEY") else "dry_run"
+        _orchestrator = Orchestrator(broker_mode=broker_mode)
     return _orchestrator
 
 

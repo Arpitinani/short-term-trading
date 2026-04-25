@@ -18,6 +18,11 @@ from __future__ import annotations
 import os
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
+
+# Auto-load .env from project root
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 from datetime import datetime
 from enum import Enum
 
