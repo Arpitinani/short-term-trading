@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
+import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -166,6 +167,43 @@ async def get_regime():
         signals=state.signals,
         timestamp=datetime.now().isoformat(),
     )
+
+
+@app.get("/ohlcv")
+async def get_ohlcv(
+    ticker: str = Query(default="SPY"),
+    period: str = Query(default="1y"),
+):
+    """Get OHLCV data for charting."""
+    from core.data.market_data import get_price_history
+    from core.indicators import calculate_rsi, calculate_sma
+
+    df = get_price_history(ticker, period)
+    if df.empty:
+        raise HTTPException(status_code=404, detail=f"No data for {ticker}")
+
+    close = df["Close"]
+    ema9 = close.ewm(span=9, adjust=False).mean()
+    ema21 = close.ewm(span=21, adjust=False).mean()
+    sma200 = close.rolling(200).mean()
+
+    records = []
+    for i in range(len(df)):
+        idx = df.index[i]
+        time_val = int(idx.timestamp()) if hasattr(idx, 'timestamp') else 0
+        records.append({
+            "time": time_val,
+            "open": round(float(df["Open"].iloc[i]), 2),
+            "high": round(float(df["High"].iloc[i]), 2),
+            "low": round(float(df["Low"].iloc[i]), 2),
+            "close": round(float(df["Close"].iloc[i]), 2),
+            "volume": int(df["Volume"].iloc[i]) if "Volume" in df.columns else 0,
+            "ema9": round(float(ema9.iloc[i]), 2) if not pd.isna(ema9.iloc[i]) else None,
+            "ema21": round(float(ema21.iloc[i]), 2) if not pd.isna(ema21.iloc[i]) else None,
+            "sma200": round(float(sma200.iloc[i]), 2) if not pd.isna(sma200.iloc[i]) else None,
+        })
+
+    return {"ticker": ticker, "period": period, "data": records}
 
 
 @app.get("/scan", response_model=ScanResult)
