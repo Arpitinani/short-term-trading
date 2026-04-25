@@ -21,6 +21,7 @@ from core.indicators import calculate_rsi, calculate_sma, calculate_atr
 from core.regime.detector import RegimeDetector, RegimeState, Regime, format_regime
 from core.risk.manager import RiskManager, Position
 from execution.alpaca_broker import AlpacaBroker, OrderSide, OrderResult
+from notifications import slack
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +63,13 @@ class Orchestrator:
         broker_mode: str = "dry_run",
         initial_equity: float = 100_000,
         strategies: list[str] | None = None,
+        notify: bool = True,
     ):
         self.broker = AlpacaBroker(mode=broker_mode)
         self.risk_manager = RiskManager(equity=initial_equity)
         self.regime_detector = RegimeDetector()
         self.strategies = strategies or ["connors_rsi2", "turtle_system2"]
+        self.notify = notify
 
         # Update equity from broker if connected
         if broker_mode != "dry_run":
@@ -92,6 +95,9 @@ class Orchestrator:
         self.risk_manager.update_regime(regime)
 
         logger.info(f"Regime: {regime.regime.value} (score: {regime.score:+.3f})")
+
+        if self.notify:
+            slack.notify_regime(regime.regime.value, regime.score, regime.allowed_strategies)
 
         # --- Step 2: Check exits on existing positions ---
         exits = self._check_exits()
@@ -149,6 +155,28 @@ class Orchestrator:
                 f"Executed: {signal.action} {risk_check.adjusted_shares} {signal.ticker} "
                 f"@ ~${signal.entry_price:.2f}, stop ${signal.stop_price:.2f} "
                 f"({signal.strategy}) — {order.status}"
+            )
+
+            if self.notify:
+                slack.notify_order(
+                    ticker=signal.ticker, side=signal.action,
+                    qty=risk_check.adjusted_shares, order_type="bracket",
+                    status=order.status, stop_loss=signal.stop_price,
+                    take_profit=signal.target_price,
+                )
+
+        # Notify scan summary
+        if self.notify:
+            acct = self.broker.get_account()
+            slack.notify_scan_summary(
+                regime=regime.regime.value,
+                regime_score=regime.score,
+                signals_count=len(signals),
+                orders_placed=len(orders_placed),
+                orders_skipped=len(orders_skipped),
+                positions_closed=len(positions_closed),
+                equity=acct.equity,
+                portfolio_heat=self.risk_manager.status()["portfolio_heat"],
             )
 
         # Build summary
@@ -308,9 +336,17 @@ class Orchestrator:
             if should_exit:
                 logger.info(f"Exit signal: {position.ticker} — {reason}")
                 order = self.broker.close_position(position.ticker)
+                pnl = position.unrealized_pnl
+                pnl_pct = position.unrealized_pnl_pct
                 self.risk_manager.remove_position(position.ticker)
-                self.risk_manager.record_realized_pnl(position.unrealized_pnl)
+                self.risk_manager.record_realized_pnl(pnl)
                 results.append(order)
+
+                if self.notify:
+                    slack.notify_position_closed(
+                        ticker=position.ticker, pnl=pnl,
+                        pnl_pct=pnl_pct, reason=reason,
+                    )
 
         return results
 
