@@ -1,64 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import CandlestickChart from "@/components/CandlestickChart";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { useState } from "react";
 
 const defaultTickers = ["SPY", "QQQ", "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "TSLA"];
-const periods = [
-  { value: "6mo", label: "6M" },
-  { value: "1y", label: "1Y" },
-  { value: "2y", label: "2Y" },
-  { value: "5y", label: "5Y" },
-  { value: "max", label: "Max" },
-];
 
 export default function ChartPage() {
   const [ticker, setTicker] = useState("SPY");
-  const [period, setPeriod] = useState("1y");
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [customTicker, setCustomTicker] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`${API_BASE}/ohlcv?ticker=${ticker}&period=${period}`);
-        if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
-        const json = await res.json();
-        setData(json.data);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load chart data");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [ticker, period]);
-
-  const lastBar = data.length > 0 ? data[data.length - 1] : null;
-  const prevBar = data.length > 1 ? data[data.length - 2] : null;
-  const dayChange = lastBar && prevBar ? lastBar.close - prevBar.close : 0;
-  const dayChangePct = prevBar ? (dayChange / prevBar.close) * 100 : 0;
+  const widgetUrl = `https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&theme=light&style=1&locale=en&toolbar_bg=%23fafaf9&enable_publishing=false&hide_side_toolbar=false&allow_symbol_change=true&studies=%5B%5D&show_popup_button=true&popup_width=1000&popup_height=650`;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold">{ticker}</h1>
-          {lastBar && (
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">${lastBar.close.toFixed(2)}</span>
-              <span className={`text-sm ${dayChange >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                {dayChange >= 0 ? "+" : ""}{dayChange.toFixed(2)} ({dayChangePct.toFixed(1)}%)
-              </span>
-            </div>
-          )}
-        </div>
+        <h1 className="text-2xl font-bold text-stone-800">{ticker}</h1>
       </div>
 
       {/* Ticker selector */}
@@ -69,8 +24,8 @@ export default function ChartPage() {
             onClick={() => setTicker(t)}
             className={`px-3 py-1 text-sm rounded-md border transition-colors ${
               ticker === t
-                ? "border-blue-500 bg-blue-500/20 text-blue-400"
-                : "border-stone-300 text-stone-500 hover:border-stone-400 hover:text-stone-600"
+                ? "border-blue-500 bg-blue-50 text-blue-700"
+                : "border-stone-300 text-stone-500 hover:border-stone-400 hover:text-stone-700"
             }`}
           >
             {t}
@@ -91,57 +46,28 @@ export default function ChartPage() {
             value={customTicker}
             onChange={(e) => setCustomTicker(e.target.value)}
             placeholder="Custom..."
-            className="w-24 px-2 py-1 text-sm bg-white border border-stone-300 rounded-md text-stone-600 placeholder-gray-600 focus:outline-none focus:border-blue-500"
+            className="w-24 px-2 py-1 text-sm bg-white border border-stone-300 rounded-md text-stone-600 placeholder-stone-400 focus:outline-none focus:border-blue-500"
           />
         </form>
-
-        <div className="ml-auto flex gap-1">
-          {periods.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => setPeriod(p.value)}
-              className={`px-2 py-1 text-xs rounded transition-colors ${
-                period === p.value
-                  ? "bg-stone-200 text-stone-800"
-                  : "text-stone-400 hover:text-stone-600"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Chart */}
-      {loading ? (
-        <div className="flex items-center justify-center h-[500px] bg-white border border-stone-200 rounded-lg">
-          <div className="text-stone-400">Loading chart...</div>
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600">
-          {error}
-        </div>
-      ) : (
-        <CandlestickChart data={data} ticker={ticker} height={500} />
-      )}
+      {/* TradingView Advanced Chart Widget */}
+      <div className="rounded-xl overflow-hidden border border-stone-200 shadow-sm" style={{ height: 600 }}>
+        <iframe
+          key={ticker}
+          src={widgetUrl}
+          width="100%"
+          height="100%"
+          frameBorder="0"
+          allowTransparency
+          allow="encrypted-media"
+          style={{ border: "none" }}
+        />
+      </div>
 
-      {/* Price info */}
-      {lastBar && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
-          {[
-            { label: "Open", value: `$${lastBar.open.toFixed(2)}` },
-            { label: "High", value: `$${lastBar.high.toFixed(2)}` },
-            { label: "Low", value: `$${lastBar.low.toFixed(2)}` },
-            { label: "Close", value: `$${lastBar.close.toFixed(2)}` },
-            { label: "Volume", value: lastBar.volume.toLocaleString() },
-          ].map((item) => (
-            <div key={item.label} className="bg-white border border-stone-200 rounded p-2">
-              <div className="text-xs text-stone-400">{item.label}</div>
-              <div className="font-medium">{item.value}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      <p className="text-xs text-stone-400 text-center">
+        Full TradingView charting — add indicators, draw trendlines, change timeframes directly on the chart
+      </p>
     </div>
   );
 }
