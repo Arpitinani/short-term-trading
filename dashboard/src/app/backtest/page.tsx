@@ -21,9 +21,9 @@ const strategies = [
 
 function MetricRow({ label, value, good }: { label: string; value: string; good?: boolean | null }) {
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-gray-800 last:border-0">
-      <span className="text-gray-400 text-sm">{label}</span>
-      <span className={`font-mono text-sm ${good === true ? "text-green-400" : good === false ? "text-red-400" : "text-gray-200"}`}>
+    <div className="flex items-center justify-between py-1.5 border-b border-stone-200 last:border-0">
+      <span className="text-stone-500 text-sm">{label}</span>
+      <span className={`font-mono text-sm ${good === true ? "text-emerald-600" : good === false ? "text-red-600" : "text-gray-200"}`}>
         {value}
       </span>
     </div>
@@ -65,11 +65,11 @@ export default function BacktestPage() {
             className={`text-left p-4 rounded-lg border transition-colors ${
               selectedStrategy.id === s.id
                 ? "border-blue-500 bg-blue-500/10"
-                : "border-gray-800 bg-gray-900 hover:border-gray-700"
+                : "border-stone-200 bg-white hover:border-stone-300"
             }`}
           >
             <div className="font-semibold">{s.name}</div>
-            <div className="text-xs text-gray-500 mt-1">{s.description}</div>
+            <div className="text-xs text-stone-400 mt-1">{s.description}</div>
           </button>
         ))}
       </div>
@@ -77,25 +77,25 @@ export default function BacktestPage() {
       {/* Controls */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-400">Ticker:</label>
+          <label className="text-sm text-stone-500">Ticker:</label>
           <input
             type="text"
             value={ticker}
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
-            className="w-20 px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-gray-300 focus:outline-none focus:border-blue-500"
+            className="w-20 px-2 py-1 text-sm bg-white border border-stone-300 rounded text-stone-600 focus:outline-none focus:border-blue-500"
           />
         </div>
         <button
           onClick={runBacktest}
           disabled={loading}
-          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm rounded-md transition-colors"
+          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-stone-200 disabled:text-stone-400 text-stone-800 text-sm rounded-md transition-colors"
         >
           {loading ? "Running..." : "Run Backtest"}
         </button>
       </div>
 
       {error && (
-        <div className="bg-red-950 border border-red-800 rounded-lg p-3 text-red-400 text-sm">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-600 text-sm">
           {error}
         </div>
       )}
@@ -104,7 +104,7 @@ export default function BacktestPage() {
       {m && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Trade Metrics */}
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div className="bg-white border border-stone-200 rounded-lg p-4">
             <h2 className="font-semibold mb-3">Trade Metrics</h2>
             <MetricRow label="Total Trades" value={String(m.total_trades)} />
             <MetricRow label="Win Rate" value={`${(m.win_rate * 100).toFixed(1)}%`} good={m.win_rate > 0.5} />
@@ -117,7 +117,7 @@ export default function BacktestPage() {
           </div>
 
           {/* Portfolio Metrics */}
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div className="bg-white border border-stone-200 rounded-lg p-4">
             <h2 className="font-semibold mb-3">Portfolio Metrics</h2>
             <MetricRow label="Total Return" value={`${(m.total_return * 100).toFixed(1)}%`} good={m.total_return > 0} />
             <MetricRow label="Annual Return" value={`${(m.annual_return * 100).toFixed(1)}%`} good={m.annual_return > 0} />
@@ -132,11 +132,11 @@ export default function BacktestPage() {
 
       {/* Strategy Parameters */}
       {result && (
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <div className="bg-white border border-stone-200 rounded-lg p-4">
           <h2 className="font-semibold mb-3">Parameters Used</h2>
           <div className="flex flex-wrap gap-2">
             {Object.entries(selectedStrategy.defaultParams).map(([key, value]) => (
-              <span key={key} className="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">
+              <span key={key} className="px-2 py-1 bg-stone-100 rounded text-xs text-stone-600">
                 {key}: {String(value)}
               </span>
             ))}

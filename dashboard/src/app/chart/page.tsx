@@ -53,7 +53,7 @@ export default function ChartPage() {
           {lastBar && (
             <div className="flex items-center gap-2">
               <span className="text-2xl">${lastBar.close.toFixed(2)}</span>
-              <span className={`text-sm ${dayChange >= 0 ? "text-green-400" : "text-red-400"}`}>
+              <span className={`text-sm ${dayChange >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                 {dayChange >= 0 ? "+" : ""}{dayChange.toFixed(2)} ({dayChangePct.toFixed(1)}%)
               </span>
             </div>
@@ -70,7 +70,7 @@ export default function ChartPage() {
             className={`px-3 py-1 text-sm rounded-md border transition-colors ${
               ticker === t
                 ? "border-blue-500 bg-blue-500/20 text-blue-400"
-                : "border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300"
+                : "border-stone-300 text-stone-500 hover:border-stone-400 hover:text-stone-600"
             }`}
           >
             {t}
@@ -91,7 +91,7 @@ export default function ChartPage() {
             value={customTicker}
             onChange={(e) => setCustomTicker(e.target.value)}
             placeholder="Custom..."
-            className="w-24 px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded-md text-gray-300 placeholder-gray-600 focus:outline-none focus:border-blue-500"
+            className="w-24 px-2 py-1 text-sm bg-white border border-stone-300 rounded-md text-stone-600 placeholder-gray-600 focus:outline-none focus:border-blue-500"
           />
         </form>
 
@@ -102,8 +102,8 @@ export default function ChartPage() {
               onClick={() => setPeriod(p.value)}
               className={`px-2 py-1 text-xs rounded transition-colors ${
                 period === p.value
-                  ? "bg-gray-700 text-white"
-                  : "text-gray-500 hover:text-gray-300"
+                  ? "bg-stone-200 text-stone-800"
+                  : "text-stone-400 hover:text-stone-600"
               }`}
             >
               {p.label}
@@ -114,11 +114,11 @@ export default function ChartPage() {
 
       {/* Chart */}
       {loading ? (
-        <div className="flex items-center justify-center h-[500px] bg-gray-900 border border-gray-800 rounded-lg">
-          <div className="text-gray-500">Loading chart...</div>
+        <div className="flex items-center justify-center h-[500px] bg-white border border-stone-200 rounded-lg">
+          <div className="text-stone-400">Loading chart...</div>
         </div>
       ) : error ? (
-        <div className="bg-red-950 border border-red-800 rounded-lg p-4 text-red-400">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600">
           {error}
         </div>
       ) : (
@@ -135,8 +135,8 @@ export default function ChartPage() {
             { label: "Close", value: `$${lastBar.close.toFixed(2)}` },
             { label: "Volume", value: lastBar.volume.toLocaleString() },
           ].map((item) => (
-            <div key={item.label} className="bg-gray-900 border border-gray-800 rounded p-2">
-              <div className="text-xs text-gray-500">{item.label}</div>
+            <div key={item.label} className="bg-white border border-stone-200 rounded p-2">
+              <div className="text-xs text-stone-400">{item.label}</div>
               <div className="font-medium">{item.value}</div>
             </div>
           ))}

@@ -42,22 +42,22 @@ export default function CandlestickChart({ data, ticker, height = 500 }: Candles
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: "#0a0a0a" },
-        textColor: "#9ca3af",
+        background: { type: ColorType.Solid, color: "#fafaf9" },
+        textColor: "#78716c",
         fontSize: 12,
       },
       grid: {
-        vertLines: { color: "#1f2937" },
-        horzLines: { color: "#1f2937" },
+        vertLines: { color: "#e7e5e4" },
+        horzLines: { color: "#e7e5e4" },
       },
       crosshair: {
         mode: 0,
       },
       rightPriceScale: {
-        borderColor: "#374151",
+        borderColor: "#d6d3d1",
       },
       timeScale: {
-        borderColor: "#374151",
+        borderColor: "#d6d3d1",
         timeVisible: false,
       },
       width: chartContainerRef.current.clientWidth,
@@ -128,7 +128,7 @@ export default function CandlestickChart({ data, ticker, height = 500 }: Candles
 
     // Volume histogram
     const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: "#374151",
+      color: "#d6d3d1",
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
     });
@@ -172,7 +172,7 @@ export default function CandlestickChart({ data, ticker, height = 500 }: Candles
           <span className="w-3 h-0.5 bg-purple-500 inline-block" /> SMA 200
         </span>
       </div>
-      <div ref={chartContainerRef} className="rounded-lg overflow-hidden border border-gray-800" />
+      <div ref={chartContainerRef} className="rounded-lg overflow-hidden border border-stone-200 shadow-sm" />
     </div>
   );
 }

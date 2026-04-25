@@ -33,29 +33,29 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gray-950 text-gray-100">
-        <nav className="border-b border-gray-800 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+      <body className="min-h-full flex flex-col bg-stone-50 text-stone-900">
+        <nav className="border-b border-stone-200 bg-white/90 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex h-14 items-center justify-between">
               <div className="flex items-center gap-1">
-                <span className="text-lg font-semibold text-white mr-6">
+                <span className="text-lg font-semibold text-stone-800 mr-6">
                   Trading System
                 </span>
                 {navItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="px-3 py-1.5 text-sm rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                    className="px-3 py-1.5 text-sm rounded-md text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition-colors"
                   >
                     {item.label}
                   </Link>
                 ))}
               </div>
-              <div className="flex items-center gap-3 text-xs text-gray-500">
-                <span className="px-2 py-1 rounded bg-gray-800 text-amber-400">
-                  DRY RUN
+              <div className="flex items-center gap-3 text-xs">
+                <span className="px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200 font-medium">
+                  PAPER
                 </span>
               </div>
             </div>
