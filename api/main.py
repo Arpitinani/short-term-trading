@@ -213,6 +213,28 @@ async def get_ohlcv(
     return {"ticker": ticker, "period": period, "data": records}
 
 
+@app.get("/signals")
+async def get_signals():
+    """Scan universe for current trading signals (no execution)."""
+    orch = _get_orchestrator()
+    signals = orch.scan_signals_only()
+
+    return [
+        {
+            "ticker": s.ticker,
+            "strategy": s.strategy,
+            "action": s.action,
+            "entry_price": round(s.entry_price, 2),
+            "stop_price": round(s.stop_price, 2),
+            "target_price": round(s.target_price, 2) if s.target_price else None,
+            "risk_pct": round(abs(s.entry_price - s.stop_price) / s.entry_price * 100, 1),
+            "reward_risk": round(abs(s.target_price - s.entry_price) / abs(s.entry_price - s.stop_price), 1) if s.target_price else None,
+            "reason": s.reason,
+        }
+        for s in signals
+    ]
+
+
 @app.get("/scan", response_model=ScanResult)
 async def run_scan():
     """Run full trading scan: regime → signals → risk check → execute (dry run)."""

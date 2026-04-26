@@ -58,17 +58,32 @@ class Orchestrator:
         result = orch.check_exits()  # check if open positions need closing
     """
 
+    # Default scan universe — portfolio + liquid large caps
+    DEFAULT_UNIVERSE = [
+        # Indices/ETFs
+        "SPY", "QQQ", "IWM",
+        # Portfolio top holdings
+        "AMZN", "TSLA", "META", "AMD", "GOOG", "DELL", "NOW", "MSFT",
+        "SNAP", "ZS", "TSM", "ORCL", "VST", "AXON", "OKLO", "CRM",
+        "DVN", "CEG", "BA", "RKLB", "MSTR",
+        # Additional liquid large caps
+        "AAPL", "NVDA", "NFLX", "AVGO", "COST", "JPM", "V", "UNH",
+        "LLY", "HD",
+    ]
+
     def __init__(
         self,
         broker_mode: str = "dry_run",
         initial_equity: float = 100_000,
         strategies: list[str] | None = None,
+        universe: list[str] | None = None,
         notify: bool = True,
     ):
         self.broker = AlpacaBroker(mode=broker_mode)
         self.risk_manager = RiskManager(equity=initial_equity)
         self.regime_detector = RegimeDetector()
         self.strategies = strategies or ["connors_rsi2", "turtle_system2"]
+        self.universe = universe or self.DEFAULT_UNIVERSE
         self.notify = notify
 
         # Update equity from broker if connected
@@ -192,6 +207,19 @@ class Orchestrator:
             summary=summary,
         )
 
+    def scan_signals_only(self) -> list[TradeSignal]:
+        """Scan for signals without executing any trades. For dashboard display."""
+        regime = self._detect_regime()
+        signals: list[TradeSignal] = []
+
+        for strategy_name in self.strategies:
+            if strategy_name not in regime.allowed_strategies:
+                continue
+            strategy_signals = self._scan_strategy(strategy_name)
+            signals.extend(strategy_signals)
+
+        return signals
+
     def check_exits(self) -> list[OrderResult]:
         """Check if any open positions need to be closed based on strategy signals."""
         return self._check_exits()
@@ -227,10 +255,10 @@ class Orchestrator:
         return signals
 
     def _scan_connors_rsi2(self) -> list[TradeSignal]:
-        """Scan SPY for RSI(2) entry signals."""
+        """Scan universe for RSI(2) entry signals."""
         signals = []
 
-        for ticker in ["SPY"]:
+        for ticker in self.universe:
             df = get_price_history(ticker, period="1y")
             if df.empty or len(df) < 200:
                 continue
@@ -263,10 +291,10 @@ class Orchestrator:
         return signals
 
     def _scan_turtle(self) -> list[TradeSignal]:
-        """Scan SPY for Turtle System 2 breakout signals."""
+        """Scan universe for Turtle System 2 breakout signals."""
         signals = []
 
-        for ticker in ["SPY"]:
+        for ticker in self.universe:
             df = get_price_history(ticker, period="1y")
             if df.empty or len(df) < 60:
                 continue
