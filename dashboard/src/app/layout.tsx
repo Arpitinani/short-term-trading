@@ -22,6 +22,7 @@ const navItems = [
   { href: "/", label: "Dashboard" },
   { href: "/signals", label: "Signals" },
   { href: "/chart", label: "Chart" },
+  { href: "/momentum", label: "Momentum" },
   { href: "/screener", label: "Screener" },
   { href: "/backtest", label: "Backtest" },
 ];

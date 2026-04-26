@@ -213,6 +213,27 @@ async def get_ohlcv(
     return {"ticker": ticker, "period": period, "data": records}
 
 
+@app.get("/momentum")
+async def get_momentum():
+    """Get momentum rankings for the scan universe."""
+    from strategies.momentum import compute_momentum_ranks
+
+    orch = _get_orchestrator()
+    ranks = compute_momentum_ranks(orch.universe)
+
+    return [
+        {
+            "ticker": r.ticker,
+            "return_12m": r.return_12m,
+            "return_1m": r.return_1m,
+            "momentum_score": r.momentum_score,
+            "rank": r.rank,
+            "percentile": r.percentile,
+        }
+        for r in ranks
+    ]
+
+
 @app.get("/signals")
 async def get_signals():
     """Scan universe for current trading signals (no execution)."""
