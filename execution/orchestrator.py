@@ -58,14 +58,19 @@ class Orchestrator:
         result = orch.check_exits()  # check if open positions need closing
     """
 
-    # Default scan universe — portfolio + liquid large caps
+    # Default scan universe — full portfolio + indices + liquid large caps
     DEFAULT_UNIVERSE = [
         # Indices/ETFs
-        "SPY", "QQQ", "IWM",
-        # Portfolio top holdings
+        "SPY", "QQQ", "DIA", "IWM",
+        # Portfolio — individual stocks
         "AMZN", "TSLA", "META", "AMD", "GOOG", "DELL", "NOW", "MSFT",
         "SNAP", "ZS", "TSM", "ORCL", "VST", "AXON", "OKLO", "CRM",
-        "DVN", "CEG", "BA", "RKLB", "MSTR",
+        "DVN", "CEG", "BA", "RKLB", "MSTR", "MBLY", "S", "NEM", "B",
+        "SLB", "MP", "MOS", "ALB", "CCJ", "ACHR", "KTOS", "BWXT",
+        "SLI", "NOC", "ANGX", "UBER", "LAC", "ASM", "HL", "KGC",
+        # Portfolio — ETFs
+        "VOO", "SCHD", "XLE", "GLD", "SLV", "IGV", "SOXX", "LIT",
+        "CIBR", "SKYY", "GBTC", "NLR", "OIH", "GDXJ", "GDX", "SLVP",
         # Additional liquid large caps
         "AAPL", "NVDA", "NFLX", "AVGO", "COST", "JPM", "V", "UNH",
         "LLY", "HD",
