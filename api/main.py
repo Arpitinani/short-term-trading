@@ -50,6 +50,8 @@ logger = logging.getLogger(__name__)
 # -------------------------------------------------------------------
 _orchestrator = None
 _regime_detector = None
+_scheduler_task = None
+_scheduler_running = False
 
 
 def _get_orchestrator():
@@ -256,6 +258,126 @@ async def get_signals():
     ]
 
 
+class ExecuteRequest(BaseModel):
+    ticker: str
+    strategy: str
+    action: str = "buy"
+    entry_price: float
+    stop_price: float
+    target_price: float | None = None
+
+
+@app.post("/execute")
+async def execute_trade(request: ExecuteRequest):
+    """Execute a single trade on Alpaca (paper or live)."""
+    orch = _get_orchestrator()
+
+    # Risk check
+    risk_check = orch.risk_manager.check_new_trade(
+        ticker=request.ticker,
+        entry_price=request.entry_price,
+        stop_price=request.stop_price,
+        strategy=request.strategy,
+    )
+
+    if not risk_check.allowed:
+        return {
+            "status": "rejected",
+            "reason": risk_check.reason,
+            "ticker": request.ticker,
+        }
+
+    # Place bracket order
+    from execution.alpaca_broker import OrderSide
+    order = orch.broker.submit_bracket_order(
+        ticker=request.ticker,
+        qty=risk_check.adjusted_shares,
+        side=OrderSide.BUY if request.action == "buy" else OrderSide.SELL,
+        stop_loss_price=request.stop_price,
+        take_profit_price=request.target_price,
+    )
+
+    # Track in risk manager
+    if order.status in ("filled", "accepted", "pending_new", "OrderStatus.ACCEPTED", "OrderStatus.FILLED"):
+        from core.risk.manager import Position
+        orch.risk_manager.add_position(Position(
+            ticker=request.ticker,
+            shares=risk_check.adjusted_shares,
+            entry_price=request.entry_price,
+            stop_price=request.stop_price,
+            current_price=request.entry_price,
+            strategy=request.strategy,
+        ))
+
+    # Log trade to history
+    _log_trade(request, risk_check.adjusted_shares, order)
+
+    return {
+        "status": "executed",
+        "order_id": order.order_id,
+        "order_status": str(order.status),
+        "ticker": request.ticker,
+        "qty": risk_check.adjusted_shares,
+        "side": request.action,
+        "stop_loss": request.stop_price,
+        "take_profit": request.target_price,
+        "risk_pct": round(risk_check.adjusted_risk_pct * 100, 2),
+    }
+
+
+def _log_trade(request: ExecuteRequest, qty: int, order):
+    """Log trade to SQLite for history tracking."""
+    import sqlite3
+    from pathlib import Path
+
+    db_path = Path(__file__).resolve().parents[1] / "data" / "trades.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS trades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+            ticker TEXT,
+            strategy TEXT,
+            action TEXT,
+            qty INTEGER,
+            entry_price REAL,
+            stop_price REAL,
+            target_price REAL,
+            order_id TEXT,
+            order_status TEXT,
+            status TEXT DEFAULT 'open'
+        )
+    """)
+    conn.execute(
+        "INSERT INTO trades (ticker, strategy, action, qty, entry_price, stop_price, target_price, order_id, order_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (request.ticker, request.strategy, request.action, qty,
+         request.entry_price, request.stop_price, request.target_price,
+         order.order_id, str(order.status)),
+    )
+    conn.commit()
+    conn.close()
+
+
+@app.get("/trades")
+async def get_trades():
+    """Get trade history from SQLite."""
+    import sqlite3
+    from pathlib import Path
+
+    db_path = Path(__file__).resolve().parents[1] / "data" / "trades.db"
+    if not db_path.exists():
+        return []
+
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("SELECT * FROM trades ORDER BY timestamp DESC").fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
 @app.get("/scan", response_model=ScanResult)
 async def run_scan():
     """Run full trading scan: regime → signals → risk check → execute (dry run)."""
@@ -389,5 +511,70 @@ async def get_status():
     return {
         "broker": orch.broker.status_summary(),
         "risk": orch.risk_manager.status(),
+        "scheduler": "running" if _scheduler_running else "stopped",
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+# -------------------------------------------------------------------
+# Scheduler endpoints
+# -------------------------------------------------------------------
+
+@app.post("/scheduler/start")
+async def start_scheduler(interval_minutes: int = Query(default=60, ge=5, le=480)):
+    """Start automated scanning on a schedule."""
+    import asyncio
+
+    global _scheduler_task, _scheduler_running
+
+    if _scheduler_running:
+        return {"status": "already_running", "interval_minutes": interval_minutes}
+
+    _scheduler_running = True
+
+    async def _scan_loop():
+        global _scheduler_running
+        while _scheduler_running:
+            try:
+                hour = datetime.now().hour
+                if 9 <= hour <= 16:  # market hours (approximate)
+                    logger.info("[Scheduler] Running automated scan...")
+                    orch = _get_orchestrator()
+                    result = orch.run_scan()
+                    logger.info(f"[Scheduler] Scan complete: {len(result.signals)} signals, {len(result.orders_placed)} orders")
+                else:
+                    logger.info(f"[Scheduler] Outside market hours ({hour}:00), skipping")
+            except Exception as e:
+                logger.error(f"[Scheduler] Scan failed: {e}")
+            await asyncio.sleep(interval_minutes * 60)
+
+    _scheduler_task = asyncio.create_task(_scan_loop())
+    logger.info(f"[Scheduler] Started — scanning every {interval_minutes} minutes")
+
+    return {"status": "started", "interval_minutes": interval_minutes}
+
+
+@app.post("/scheduler/stop")
+async def stop_scheduler():
+    """Stop automated scanning."""
+    global _scheduler_task, _scheduler_running
+
+    if not _scheduler_running:
+        return {"status": "already_stopped"}
+
+    _scheduler_running = False
+    if _scheduler_task:
+        _scheduler_task.cancel()
+        _scheduler_task = None
+
+    logger.info("[Scheduler] Stopped")
+    return {"status": "stopped"}
+
+
+@app.get("/scheduler/status")
+async def scheduler_status():
+    """Get scheduler status."""
+    return {
+        "running": _scheduler_running,
         "timestamp": datetime.now().isoformat(),
     }

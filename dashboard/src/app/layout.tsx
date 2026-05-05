@@ -25,6 +25,7 @@ const navItems = [
   { href: "/momentum", label: "Momentum" },
   { href: "/screener", label: "Screener" },
   { href: "/backtest", label: "Backtest" },
+  { href: "/history", label: "History" },
 ];
 
 export default function RootLayout({
