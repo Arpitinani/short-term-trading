@@ -36,10 +36,11 @@ app = FastAPI(
 _allowed_origins = [
     "http://localhost:3000",
     "http://localhost:3001",
+    "https://short-term-trading.vercel.app",
 ]
-# Add Vercel deployed URL if configured
+# Add custom frontend URL if configured
 _vercel_url = os.environ.get("FRONTEND_URL", "")
-if _vercel_url:
+if _vercel_url and _vercel_url not in _allowed_origins:
     _allowed_origins.append(_vercel_url)
 
 app.add_middleware(
