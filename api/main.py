@@ -32,10 +32,19 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Allow Next.js frontend to connect
+# Allow Next.js frontend to connect (local + Vercel deployed)
+_allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
+# Add Vercel deployed URL if configured
+_vercel_url = os.environ.get("FRONTEND_URL", "")
+if _vercel_url:
+    _allowed_origins.append(_vercel_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
